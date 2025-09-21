@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>PennyWise</title>
+  <style>
+    body{font-family:Arial;margin:20px;background:#f7f7f7}
+    #chat{height:400px;overflow:auto;background:#fff;padding:10px;border-radius:6px;border:1px solid #ddd}
+    .user{color:#0b6bd3;font-weight:bold}
+    .bot{color:#228B22;font-weight:bold}
+    #inputArea{display:flex;gap:8px;margin-top:10px}
+    input{flex:1;padding:10px}
+    button{padding:10px 14px;background:#b8860b;color:#fff;border:none;border-radius:4px}
+  </style>
+</head>
+<body>
+  <h2 style="text-align:center;color:#b8860b">PennyWise - Your Budget Assistant</h2>
+  <div id="chat"></div>
+  <div id="inputArea">
+    <input id="userInput" placeholder="Ask PennyWise about budgeting..." />
+    <button id="sendBtn">Send</button>
+  </div>
+
+<script>
+const proxy = "https://corsproxy.io/?"; // quick hack proxy (public)
+const url = "https://api.openai.com/v1/chat/completions";
+const OPENAI_KEY = "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";
+// ================================================================
+
+function addLine(who, text){
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.innerHTML = `<span class="${who}">${who === 'user' ? 'You' : 'PennyWise'}:</span> ${text}`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function sendMessage(prompt){
+  addLine('user', prompt);
+  addLine('bot', '...thinking');
+  try {
+    const body = {
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are PennyWise, a helpful budget management assistant. Only answer budgeting-related prompts." },
+        { role: "user", content: prompt }
+      ],
+      max_tokens: 600
+    };
+
+    const resp = await fetch(proxy + url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer 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" + OPENAI_KEY
+      },
+      body: JSON.stringify(body)
+    });
+
+    const data = await resp.json();
+    // Remove the "thinking" line and add actual reply:
+    const chat = document.getElementById('chat');
+    // remove last bot "thinking" (simple)
+    const nodes = chat.querySelectorAll('div');
+    if(nodes.length) chat.removeChild(nodes[nodes.length - 1]);
+    const reply = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "No reply (error)";
+    addLine('bot', reply);
+  } catch (e) {
+    const chat = document.getElementById('chat');
+    // remove thinking
+    const nodes = chat.querySelectorAll('div');
+    if(nodes.length) chat.removeChild(nodes[nodes.length - 1]);
+    addLine('bot', 'Error contacting API: ' + e.message);
+  }
+}
+
+document.getElementById('sendBtn').addEventListener('click', () => {
+  const v = document.getElementById('userInput').value.trim();
+  if(!v) return;
+  sendMessage(v);
+  document.getElementById('userInput').value = '';
+});
+
+// allow Enter to send
+document.getElementById('userInput').addEventListener('keypress', (e) => {
+  if(e.key === 'Enter'){ e.preventDefault(); document.getElementById('sendBtn').click(); }
+});
+</script>
+</body>
+</html>
